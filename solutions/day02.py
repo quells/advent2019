@@ -1,16 +1,35 @@
 from helpers import check_result
 import unittest
 
+class BreakLoop(Exception):
+    pass
+
 def main():
     with open('input/02.txt') as f:
         data = f.readline()
     
     code = list(map(int, data.split(',')))
     # 1202 override
-    code[1] = 12
-    code[2] = 2
-    result = handle_intcode(code)
+    part_a = init_phrase(code[:], 12, 2)
+    result = handle_intcode(part_a)
     check_result('02A', 4570637, result[0])
+
+    search_for = 19690720
+    found = None
+    try:
+        for noun in range(100):
+            for verb in range(100):
+                case = init_phrase(code[:], noun, verb)
+                result = handle_intcode(case)
+                if result[0] == search_for:
+                    found = 100*noun + verb
+                    raise BreakLoop
+    except BreakLoop:
+        pass
+    if not found:
+        print('02B failed: pair not found')
+        return
+    check_result('02B', 5485, found)
 
 def handle_intcode(codes):
     idx = 0
@@ -34,6 +53,11 @@ def handle_intcode(codes):
         else:
             break
     return codes
+
+def init_phrase(code, noun, verb):
+    code[1] = noun
+    code[2] = verb
+    return code
 
 class TestIntcodeInterpreter(unittest.TestCase):
     def test_handle_intcode(self):
