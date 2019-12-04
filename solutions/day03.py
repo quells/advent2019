@@ -2,6 +2,8 @@ from helpers import check_result
 import unittest
 
 def main():
+    # should just convert each cmd to a line segment and then do pairwise hit-tests between wires
+    # that's probably better than a bitmap approach
     pass
 
 # This isn't that useful - better to just keep direction keys and unsigned distance
@@ -25,9 +27,6 @@ def parse_segments(paths):
     a_segments = list(map(parse_segment, a.split(",")))
     b_segments = list(map(parse_segment, b.split(",")))
     return (a_segments, b_segments)
-
-def segments_to_bitmap(segments):
-    pass
 
 class TestCrossedWires(unittest.TestCase):
     def test_closest_crossing_a(self):
