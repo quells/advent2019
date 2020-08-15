@@ -1,5 +1,6 @@
 mod fuel;
 mod intcode;
+mod password;
 mod wires;
 
 use std::io::prelude::Read;
@@ -109,5 +110,24 @@ mod tests {
             .map(|c| c.total_time)
             .fold(isize::max_value(), |m, x| isize::min(m, x));
         assert_eq!(min_time, 107754);
+    }
+
+    #[test]
+    fn day04() {
+        let mut a = 0;
+        let mut b = 0;
+        for i in 356261..846303 {
+            let runs = password::runs(&i.to_string());
+            if password::is_monotonic(&runs) {
+                if password::contains_consecutive(&runs) {
+                    a += 1;
+                    if password::contains_double(&runs) {
+                        b += 1;
+                    }
+                }
+            }
+        }
+        assert_eq!(a, 544);
+        assert_eq!(b, 334);
     }
 }
