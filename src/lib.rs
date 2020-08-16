@@ -1,6 +1,7 @@
 mod fuel;
 mod intcode;
 mod password;
+mod tree;
 mod wires;
 
 use std::io::prelude::Read;
@@ -183,5 +184,23 @@ mod tests {
         let result = o.join().expect("output thread panicked");
         vm.join().expect("vm thread panicked");
         assert_eq!(result, 12111395);
+    }
+
+    #[test]
+    fn day06a() {
+        let input = load("06.txt");
+        let mut system = tree::Tree::new(&"COM");
+        let children: Vec<(&str, &str)> = input.split("\n")
+            .map(|line| {
+                let obj: Vec<&str> = line.split(")").collect();
+                (obj[1], obj[0])
+            })
+            .collect();
+        system.ingest(&children);
+
+        let orbit_count = (0..system.len())
+            .map(|idx| system.depth_at(idx))
+            .fold(0, |acc, x| acc + x);
+        assert_eq!(orbit_count, 130681);
     }
 }
