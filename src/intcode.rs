@@ -1,4 +1,6 @@
 use std::convert::TryFrom;
+use std::sync::mpsc::{SyncSender, Receiver};
+use std::sync::mpsc;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Mode {
@@ -22,7 +24,7 @@ pub enum Op {
 
     // 04 : src
     // output := *src
-    Write,
+    Write(Mode),
 
     // 99
     Halt,
@@ -42,7 +44,9 @@ impl Op {
             1102 => Self::Mul(Mode::Imm, Mode::Imm),
 
             3 => Self::Read,
-            4 => Self::Write,
+
+              4 => Self::Write(Mode::Ptr),
+            104 => Self::Write(Mode::Imm),
 
             99 => Self::Halt,
             _ => return None,
@@ -51,20 +55,31 @@ impl Op {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct VM {
     pub mem: Vec<isize>,
     pub pc: usize,
     pub halt: bool,
+    reader: Receiver<isize>,
+    writer: SyncSender<isize>,
 }
 
 impl VM {
     pub fn new(program: &[isize]) -> Self {
-        Self {
+        Self::with_io(program).0
+    }
+
+    pub fn with_io(program: &[isize]) -> (Self, SyncSender<isize>, Receiver<isize>) {
+        let (input_tx, input_rx): (SyncSender<isize>, Receiver<isize>) = mpsc::sync_channel(0);
+        let (output_tx, output_rx): (SyncSender<isize>, Receiver<isize>) = mpsc::sync_channel(0);
+        let s = Self {
             mem: program.to_vec(),
             pc: 0,
             halt: false,
-        }
+            reader: input_rx,
+            writer: output_tx,
+        };
+        (s, input_tx, output_rx)
     }
 
     pub fn run(&mut self) {
@@ -89,8 +104,16 @@ impl VM {
         match op {
             Some(Op::Add(_, _)) => self.binop(op.unwrap()),
             Some(Op::Mul(_, _)) => self.binop(op.unwrap()),
-            Some(Op::Read) => {},
-            Some(Op::Write) => {},
+            Some(Op::Read) => {
+                let ptr = self.mem[self.pc];
+                self.pc += 1;
+                self.put(ptr, self.reader.recv().unwrap());
+            },
+            Some(Op::Write(mode)) => {
+                let ptr = self.mem[self.pc];
+                self.pc += 1;
+                self.writer.send(self.deref(ptr, mode)).unwrap();
+            },
             Some(Op::Halt) => {
                 self.halt = true;
                 return;
@@ -101,6 +124,12 @@ impl VM {
         }
     }
 
+    #[inline(always)]
+    fn put(&mut self, ptr: isize, value: isize) {
+        self.mem[usize::try_from(ptr).unwrap()] = value;
+    }
+
+    #[inline(always)]
     fn deref(&self, ptr: isize, mode: Mode) -> isize {
         match mode {
             Mode::Ptr => self.mem[usize::try_from(ptr).unwrap()],
@@ -114,7 +143,7 @@ impl VM {
         let dst_ptr = self.mem[self.pc + 2];
         self.pc += 3;
         
-        self.mem[usize::try_from(dst_ptr).unwrap()] = match op {
+        let result = match op {
             Op::Add(a_mode, b_mode) => {
                 let a = self.deref(a_ptr, a_mode);
                 let b = self.deref(b_ptr, b_mode);
@@ -127,12 +156,14 @@ impl VM {
             },
             _ => return,
         };
+        self.put(dst_ptr, result);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::thread;
 
     #[test]
     fn add_mul_halt() {
@@ -152,6 +183,24 @@ mod tests {
 
         vm.step();
         assert!(vm.halt);
+    }
+
+    #[test]
+    fn io() {
+        let prog = vec![
+            3, 0,
+            4, 0,
+            99,
+        ];
+        let (mut vm, input, output) = VM::with_io(&prog);
+        let i = thread::spawn(move || input.send(123).unwrap());
+        let o = thread::spawn(move || output.recv().unwrap());
+        let vm = thread::spawn(move || vm.run());
+
+        i.join().expect("input thread panicked");
+        let result = o.join().expect("output thread panicked");
+        vm.join().expect("vm thread panicked");
+        assert_eq!(result, 123);
     }
 
     #[test]
