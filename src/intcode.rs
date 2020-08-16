@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::sync::mpsc::{SyncSender, Receiver};
 use std::sync::mpsc;
+use std::thread;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Mode {
@@ -229,10 +230,38 @@ impl VM {
     }
 }
 
+pub struct Series {
+    program: Vec<isize>,
+    count: usize,
+}
+
+impl Series {
+    pub fn new(program: &[isize], count: usize) -> Self {
+        Self { program: program.to_vec(), count }
+    }
+
+    pub fn execute(&self, inputs: Vec<isize>) -> isize {
+        assert_eq!(inputs.len(), self.count);
+        let mut prev = 0;
+        for iv in inputs.clone() {
+            let (mut vm, input, output) = VM::with_io(&self.program);
+            let ih = thread::spawn(move || {
+                input.send(iv).unwrap();
+                input.send(prev).unwrap();
+            });
+            let oh = thread::spawn(move || output.recv().unwrap());
+            let vmh = thread::spawn(move || vm.run());
+            ih.join().expect("input thread panicked");
+            vmh.join().expect("vm thread panicked");
+            prev = oh.join().expect("output thread panicked");
+        }
+        prev
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::thread;
 
     #[test]
     fn add_mul_halt() {
@@ -415,5 +444,35 @@ mod tests {
         assert_eq!(result, 1000);
         let result = test_io(&prog, vec![9])[0];
         assert_eq!(result, 1001);
+    }
+
+    #[test]
+    fn series_a() {
+        let prog = vec![3,15,3,16,1002,16,10,16,1,16,15,15,4,15,99,0,0];
+        let s = Series::new(&prog, 5);
+        let output = s.execute(vec![4, 3, 2, 1, 0]);
+        assert_eq!(output, 43210);
+    }
+
+    #[test]
+    fn series_b() {
+        let prog = vec![
+            3,23,3,24,1002,24,10,24,1002,23,-1,23,
+            101,5,23,23,1,24,23,23,4,23,99,0,0
+        ];
+        let s = Series::new(&prog, 5);
+        let output = s.execute(vec![0, 1, 2, 3, 4]);
+        assert_eq!(output, 54321);
+    }
+
+    #[test]
+    fn series_c() {
+        let prog = vec![
+            3,31,3,32,1002,32,10,32,1001,31,-2,31,1007,31,0,33,
+            1002,33,7,33,1,33,31,31,1,32,31,31,4,31,99,0,0,0
+        ];
+        let s = Series::new(&prog, 5);
+        let output = s.execute(vec![1, 0, 4, 3, 2]);
+        assert_eq!(output, 65210);
     }
 }

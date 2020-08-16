@@ -203,4 +203,28 @@ mod tests {
             .fold(0, |acc, x| acc + x);
         assert_eq!(orbit_count, 130681);
     }
+
+    #[test]
+    fn day07a() {
+        let program: Vec<isize> = load("07.txt")
+            .split(",")
+            .map(|s| isize::from_str(s).unwrap())
+            .collect();
+        let s = intcode::Series::new(&program, 5);
+        let mut max = 0;
+        
+        for a in 0..5 {
+            for b in 0..5 {
+                for c in 0..5 {
+                    for d in 0..5 {
+                        for e in 0..5 {
+                            let thrust = s.execute(vec![a, b, c, d, e]);
+                            max = isize::max(max, thrust);
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(max, 0);
+    }
 }
