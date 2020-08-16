@@ -1,5 +1,5 @@
 use std::convert::TryFrom;
-use std::sync::mpsc::{SyncSender, Receiver};
+use std::sync::mpsc::{Sender, Receiver};
 use std::sync::mpsc;
 use std::thread;
 
@@ -172,7 +172,7 @@ pub struct VM {
     pub pc: usize,
     pub halt: bool,
     reader: Receiver<isize>,
-    writer: SyncSender<isize>,
+    writer: Sender<isize>,
 }
 
 impl VM {
@@ -180,9 +180,9 @@ impl VM {
         Self::with_io(program).0
     }
 
-    pub fn with_io(program: &[isize]) -> (Self, SyncSender<isize>, Receiver<isize>) {
-        let (input_tx, input_rx): (SyncSender<isize>, Receiver<isize>) = mpsc::sync_channel(0);
-        let (output_tx, output_rx): (SyncSender<isize>, Receiver<isize>) = mpsc::sync_channel(0);
+    pub fn with_io(program: &[isize]) -> (Self, Sender<isize>, Receiver<isize>) {
+        let (input_tx, input_rx): (Sender<isize>, Receiver<isize>) = mpsc::channel();
+        let (output_tx, output_rx): (Sender<isize>, Receiver<isize>) = mpsc::channel();
         let s = Self {
             mem: program.to_vec(),
             pc: 0,
