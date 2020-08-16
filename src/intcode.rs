@@ -90,6 +90,82 @@ impl Op {
     }
 }
 
+pub struct Disassembler {
+    program: Vec<isize>,
+    pc: usize,
+}
+
+impl Disassembler {
+    pub fn new(program: &[isize]) -> Self {
+        Self {
+            program: program.to_vec(),
+            pc: 0,
+        }
+    }
+
+    fn deref(ptr: isize, mode: Mode) -> String {
+        match mode {
+            Mode::Ptr => format!("[{}]", ptr),
+            Mode::Imm => format!("#{}", ptr),
+        }
+    }
+
+    fn binop(&mut self, mnemonic: &str, a_mode: Mode, b_mode: Mode) -> String {
+        let a_ptr = self.program[self.pc];
+        let b_ptr = self.program[self.pc + 1];
+        let dst_ptr = self.program[self.pc + 2];
+        self.pc += 3;
+        let a = Self::deref(a_ptr, a_mode);
+        let b = Self::deref(b_ptr, b_mode);
+        let dst = Self::deref(dst_ptr, Mode::Ptr);
+        format!("{} {} {} -> {}", mnemonic, a, b, dst)
+    }
+
+    pub fn disassemble(&mut self) -> Vec<String> {
+        let mut ops = Vec::new();
+        loop {
+            if self.pc >= self.program.len() {
+                break
+            }
+            let op_code = self.program[self.pc];
+            self.pc += 1;
+    
+            let line = format!("{:0>4}", self.pc);
+            let dis = match Op::from(op_code) {
+                Some(Op::Add(a_mode, b_mode)) => self.binop("ADD  ", a_mode, b_mode),
+                Some(Op::Mul(a_mode, b_mode)) => self.binop("MUL  ", a_mode, b_mode),
+                Some(Op::Less(_a_mode, b_mode)) => self.binop("LESS ", _a_mode, b_mode),
+                Some(Op::Equal(_a_mode, b_mode)) => self.binop("EQUAL", _a_mode, b_mode),
+                Some(Op::Read) => {
+                    let ptr = self.program[self.pc];
+                    self.pc += 1;
+                    format!("READ  -> {}", Self::deref(ptr, Mode::Ptr))
+                },
+                Some(Op::Write(mode)) => {
+                    let ptr = self.program[self.pc];
+                    self.pc += 1;
+                    format!("WRITE {}", Self::deref(ptr, mode))
+                },
+                Some(Op::Jump(m, a_mode, dst_mode)) => {
+                    let ptr = self.program[self.pc];
+                    let dst = self.program[self.pc + 1];
+                    self.pc += 2;
+                    if m {
+                        format!("JUMPN {} {}", Self::deref(ptr, a_mode), Self::deref(dst, dst_mode))
+                    } else {
+                        format!("JUMPZ {} {}", Self::deref(ptr, a_mode), Self::deref(dst, dst_mode))
+                    }
+                },
+                Some(Op::Halt) => "HALT".to_string(),
+                None => format!("DATA  {}", op_code),
+                _ => panic!("unhandled op code {}", op_code),
+            };
+            ops.push(format!("{} {}", line, dis));
+        }
+        ops
+    }
+}
+
 #[derive(Debug)]
 pub struct VM {
     pub mem: Vec<isize>,

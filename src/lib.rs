@@ -1,5 +1,5 @@
 mod fuel;
-mod intcode;
+pub mod intcode;
 mod password;
 mod tree;
 mod wires;
@@ -210,21 +210,27 @@ mod tests {
             .split(",")
             .map(|s| isize::from_str(s).unwrap())
             .collect();
-        let s = intcode::Series::new(&program, 5);
-        let mut max = 0;
-        
-        for a in 0..5 {
-            for b in 0..5 {
-                for c in 0..5 {
-                    for d in 0..5 {
-                        for e in 0..5 {
-                            let thrust = s.execute(vec![a, b, c, d, e]);
-                            max = isize::max(max, thrust);
-                        }
-                    }
-                }
-            }
+        let mut dis = intcode::Disassembler::new(&program);
+        for line in dis.disassemble() {
+            println!("{}", line);
         }
-        assert_eq!(max, 0);
+        let s = intcode::Series::new(&program, 5);
+        let thrust = s.execute(vec![3, 4, 4, 4, 4]);
+        assert_eq!(thrust, 0);
+        // let mut max = 0;
+        
+        // for a in 0..5 {
+        //     for b in 0..5 {
+        //         for c in 0..5 {
+        //             for d in 0..5 {
+        //                 for e in 0..5 {
+        //                     let thrust = s.execute(vec![a, b, c, d, e]);
+        //                     max = isize::max(max, thrust);
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+        // assert_eq!(max, 0);
     }
 }
