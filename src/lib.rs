@@ -42,9 +42,9 @@ mod tests {
 
     #[test]
     fn day02a() {
-        let mut program: Vec<usize> = load("02.txt")
+        let mut program: Vec<isize> = load("02.txt")
             .split(",")
-            .map(|s| usize::from_str(s).unwrap())
+            .map(|s| isize::from_str(s).unwrap())
             .collect();
         program[1] = 12;
         program[2] = 2;
@@ -55,9 +55,9 @@ mod tests {
 
     #[test]
     fn day02b() {
-        let mut program: Vec<usize> = load("02.txt")
+        let mut program: Vec<isize> = load("02.txt")
             .split(",")
-            .map(|s| usize::from_str(s).unwrap())
+            .map(|s| isize::from_str(s).unwrap())
             .collect();
     
         'outer: for noun in 0..100 {
