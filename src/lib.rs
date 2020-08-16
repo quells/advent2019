@@ -42,9 +42,9 @@ mod tests {
 
     #[test]
     fn day02a() {
-        let mut program: Vec<usize> = load("02.txt")
+        let mut program: Vec<isize> = load("02.txt")
             .split(",")
-            .map(|s| usize::from_str(s).unwrap())
+            .map(|s| isize::from_str(s).unwrap())
             .collect();
         program[1] = 12;
         program[2] = 2;
@@ -55,9 +55,9 @@ mod tests {
 
     #[test]
     fn day02b() {
-        let mut program: Vec<usize> = load("02.txt")
+        let mut program: Vec<isize> = load("02.txt")
             .split(",")
-            .map(|s| usize::from_str(s).unwrap())
+            .map(|s| isize::from_str(s).unwrap())
             .collect();
     
         'outer: for noun in 0..100 {
@@ -129,5 +129,59 @@ mod tests {
         }
         assert_eq!(a, 544);
         assert_eq!(b, 334);
+    }
+
+    #[test]
+    fn day05a() {
+        use std::thread;
+
+        let program: Vec<isize> = load("05.txt")
+            .split(",")
+            .map(|s| isize::from_str(s).unwrap())
+            .collect();
+        let (mut vm, input, output) = intcode::VM::with_io(&program);
+        let i = thread::spawn(move || input.send(1).unwrap());
+        let o = thread::spawn(move || {
+            let mut last = -1;
+            loop {
+                match output.recv() {
+                    Ok(x) => last = x,
+                    _ => break,
+                }
+            }
+            last
+        });
+        let vm = thread::spawn(move || vm.run());
+        i.join().expect("input thread panicked");
+        let result = o.join().expect("output thread panicked");
+        vm.join().expect("vm thread panicked");
+        assert_eq!(result, 13346482);
+    }
+
+    #[test]
+    fn day05b() {
+        use std::thread;
+
+        let program: Vec<isize> = load("05.txt")
+            .split(",")
+            .map(|s| isize::from_str(s).unwrap())
+            .collect();
+        let (mut vm, input, output) = intcode::VM::with_io(&program);
+        let i = thread::spawn(move || input.send(5).unwrap());
+        let o = thread::spawn(move || {
+            let mut last = -1;
+            loop {
+                match output.recv() {
+                    Ok(x) => last = x,
+                    _ => break,
+                }
+            }
+            last
+        });
+        let vm = thread::spawn(move || vm.run());
+        i.join().expect("input thread panicked");
+        let result = o.join().expect("output thread panicked");
+        vm.join().expect("vm thread panicked");
+        assert_eq!(result, 12111395);
     }
 }
